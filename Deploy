@@ -1,0 +1,61 @@
+va 1.8.0_181
+- 톰캣 8이상 다운 -> 로컬 폴더 압축해제
+- 이클립스Luna 이상 혹은 STS 최신버전(현재 sts-3.9.5.RELEASE)
+
+
+[이클립스 실행 후 설치]
+(STS 툴을 다운받으신 경우 3번만 진행하면 됨 -> 체크아웃 받은 후 Boot Dashboard탭에서 바로 실행하면 됨.)
+
+1. Spring설치 : Help탭 -> Eclipse MarketPlace -> sts 검색 -> Spring Tools 3 Add-On 설치 (또는 spring Tool 4)
+2. Maven설치 : Help탭 -> Eclipse MarketPlace -> maven 검색 -> Maven Integration for Eclipse (Luna and newer) 1.5 설치
+3. 프로젝트 check-out : svn://172.31.131.68:8443/svn/swpes 접속 -> trunk-> monitoring -> test 폴더 체크아웃 (svn + svn커넥터 미설치시 설치)
+4. 서버셋팅 : 다운받은 톰캣 압축 해제 -> 해당 경로로 톰캣8 server 추가
+   -> 이클립스 server 창에서 new server -> apache tomcat 설정시 다운받은 폴더 선택 -> 실행하면 Spring 기반으로 동작
+5. context root monitoring으로 변경 : server.xml 맨 아랫줄 /test부분을 /monitoring으로 변경 저장 
+   -> 프로젝트에서 ctrl + shift + r 에서 설정한 tomcat8.X 환경의 server.xml 찾으셔서, 아래처럼 /monitoring으로 바꾼다.
+      <Context docBase="test" path="/monitoring" reloadable="true" source="org.eclipse.jst.jee.server:test"/></Host>
+  
+
+[실행]
+1. vpn 연결
+2. localhost:8080/monitoring 으로 접속 시 인증화면 확인 (pw:gsaadmin)
+
+(아래 progress bar 상태 확인 해주시고 process가 완전히 종료 된 후 실행 해 주세요. maven이 설치 중이거나 프로젝트 clean중일 수 있습니다.)
+
+
+
+
+2) 배포방법
+
+[War파일 생성]
+1. 프로젝트 명 우클릭
+2. Export 클릭
+3. Web 폴더 클릭 -> WAR file 선택 -> Next버튼
+4. Destination 설정 (war파일이 만들어 지는 폴더\monitoring.war) -> Finish버튼
+
+
+106번 서버 접속 (172.31.142.106 / id:root/ pw:posco123)
+=>106번 서버 다운으로 102번으로 이관 (http://172.31.142.102:8889/monitoring/)
+
+
+[FTP 접속] 
+1. /home/monitoring/was/apache-tomcat-8.5.34/webapps 접속
+2. 기존 war파일 삭제
+3. 생성한 war파일을 해당경로로 복사
+
+
+[SSH 접속]
+1. /home/monitoring/was/apache-tomcat-8.5.34/bin 접속
+2. ./shutdown.sh 입력 (서버내림)
+3. ./startup.sh  입력(서버기동)
+
+
+[확인] 
+1. http://172.31.142.106:8889/monitoring 접속 후 확인
+
+
+
+
+※ 이클립스 신규설치 후 설정방법
+https://start.goodtime.co.kr/2013/06/%EC%83%88-%EC%9D%B4%ED%81%B4%EB%A6%BD%EC%8A%A4%EB%A5%BC-%EC%82%AC%EC%9A%A9%ED%95%A0-%EB%95%8C-%EB%82%98%EC%9D%98-5%EB%B6%84-%EC%84%A4%EC%A0%95/
+

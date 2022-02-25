@@ -1,0 +1,235 @@
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.test.test.spring.repository.ConfigurationMapper">
+	<update id="saveConfiguration">
+	    UPDATE 
+		    POSMINI.TB_U40_ES_MA_102   
+		SET 
+		    ACTIVE_FLAG = 
+		    CASE  
+		        WHEN FK_CD_TP = 'ELASTIC_IP' AND CD_TP=#{ELASTIC_IP} THEN 'Y'
+		        WHEN FK_CD_TP = 'ELASTIC_IP' AND CD_TP!=#{ELASTIC_IP} THEN 'N' 
+		    END 
+    </update> 
+    
+    <insert id="insertMultiESAuthDB">
+ 	   MERGE INTO  POSMINI.TB_U40_010_ES_AUTH A 
+ 	   	USING ( 	   	
+	    <foreach collection="emp_params" item="item" index="i1" separator=" UNION ">
+	    SELECT #{system_id} AS SYSTEM_ID,
+               #{auth_id} AS AUTH_ID,
+               #{item.comcode} AS COMPANY_CODE,
+               #{item.empno} AS USER_EMP_NO,
+               #{item.fullname} AS FULL_NAME,
+               #{item.loginid} AS USER_LOGIN_ID
+        FROM   DUAL
+	    </foreach>
+ 	   	) TMP
+ 	   	ON (   A.SYSTEM_ID=TMP.SYSTEM_ID
+        AND    A.AUTH_ID = TMP.AUTH_ID
+        AND    A.COMPANY_CODE = TMP.COMPANY_CODE
+        AND    A.USER_EMP_NO = TMP.USER_EMP_NO
+        AND    A.SYSTEM_ID IN ('all','search')
+ 	   	)
+ 	   WHEN MATCHED THEN
+ 	   	UPDATE SET    LAST_UPDATE_TIMESTAMP = SYSDATE, LAST_UPDATED_OBJECT_ID='monitoring.ESAuthDB', ATTRIBUTE1='Y', ATTRIBUTE2=#{start_date}, ATTRIBUTE3=#{end_date}, USER_AUTH_EXPLAIN = #{user_auth_explain}
+ 	   WHEN NOT MATCHED THEN
+ 	   	INSERT  
+            (SYSTEM_ID,
+		    AUTH_ID,
+		    COMPANY_CODE,
+		    GROUP_ID,
+		    USER_EMP_NO,
+		    FULL_NAME,
+		    USER_LOGIN_ID,
+		    META_YN,
+		    USER_AUTH_EXPLAIN,
+		    CREATED_OBJECT_ID,
+		    CREATION_TIMESTAMP,
+		    ATTRIBUTE1,
+		    ATTRIBUTE2,
+		    ATTRIBUTE3)
+		   VALUES (#{system_id},
+			      #{auth_id},
+			      TMP.COMPANY_CODE,
+			      'ESAG0000',
+			      TMP.USER_EMP_NO,
+			      TMP.FULL_NAME,
+			      TMP.USER_LOGIN_ID,
+			      'n',
+			      #{user_auth_explain},
+			      'monitoring.ESAuthDB',
+			      SYSDATE,
+			      'Y',
+			      #{start_date},
+			      #{end_date})
+    </insert>
+    
+    <update id="mergeESAuthDB">
+    	MERGE
+    	INTO POSMINI.TB_U40_010_ES_AUTH USING DUAL ON (SYSTEM_ID=#{system_id}
+		      AND AUTH_ID=#{auth_id}
+		      AND COMPANY_CODE=#{company_code}
+		      AND GROUP_ID=#{group_id}
+		      AND USER_EMP_NO=#{user_emp_no})
+		WHEN MATCHED THEN
+		UPDATE
+		SET FULL_NAME=#{full_name},
+			USER_LOGIN_ID=#{user_login_id},
+			META_YN=#{meta_yn},
+			USER_AUTH_EXPLAIN=#{user_auth_explain},
+			ATTRIBUTE1=#{attribute1},
+			ATTRIBUTE2=#{start_date}, 
+			ATTRIBUTE3=#{end_date},
+			LAST_UPDATED_OBJECT_ID = 'monitoring.ESAuthDB',
+			LAST_UPDATE_TIMESTAMP=SYSDATE
+		WHEN NOT MATCHED THEN
+		INSERT (SYSTEM_ID,
+			    AUTH_ID,
+			    COMPANY_CODE,
+			    GROUP_ID,
+			    USER_EMP_NO,
+			    FULL_NAME,
+			    USER_LOGIN_ID,
+			    META_YN,
+			    USER_AUTH_EXPLAIN,
+			    CREATED_OBJECT_ID,
+			    CREATION_TIMESTAMP,
+			    ATTRIBUTE1,
+			    ATTRIBUTE2,
+			    ATTRIBUTE3)
+		VALUES (#{system_id},
+		      #{auth_id},
+		      #{company_code},
+		      #{group_id},
+		      #{user_emp_no},
+		      #{full_name},
+		      #{user_login_id},
+		      #{meta_yn},
+		      #{user_auth_explain},
+		      'monitoring.ESAuthDB',
+		      SYSDATE,
+		      'Y',
+		      #{start_date},
+		      #{end_date})
+    
+    </update>
+    
+    <update id="disabledESAuthDB">
+    	UPDATE
+    		POSMINI.TB_U40_010_ES_AUTH
+    	SET
+    		ATTRIBUTE1 = 'N',
+    		LAST_UPDATED_OBJECT_ID = 'monitoring.ESAuthDB',
+	    	LAST_UPDATE_TIMESTAMP = SYSDATE
+		WHERE 1=1
+			AND SYSTEM_ID in (${system_id})
+			AND AUTH_ID in (${auth_id})
+			AND COMPANY_CODE in (${company_code})
+			AND GROUP_ID in (${group_id})
+			AND USER_EMP_NO in (${user_emp_no})
+    </update>
+    <select id="selectCommonCode" resultType="hashmap"> 
+		SELECT
+		    CD_TP,
+		    CD_TP_MEANING CD_TP_NM
+		FROM   
+			POSMINI.TB_U40_ES_MA_102
+		WHERE 
+			1=1
+		<if test="cdTpTp !=null">
+			 AND FK_CD_TP = #{cdTpTp}
+		</if>
+		<if test="activeFlag !=null">
+			 AND ACTIVE_FLAG = #{activeFlag}
+		</if>
+			ORDER BY SEARCH_SORT_SEQ
+	</select>    
+    <select id="selectOrgMember" resultType="hashmap">
+		SELECT FULL_NAME,
+		       USER_EMP_NO,
+		       USER_LOGIN_ID,
+		       EMAIL_ADDRESS,
+		       COMPANY_CODE, 
+		       NVL((SELECT CD_TP_MEANING
+		                FROM   POSMINI.TB_U40_ES_MA_102
+		                WHERE  FK_CD_TP='001'
+		                AND    COMPANY_CODE = U.COMPANY_CODE), 'isNull1234TT') COMPANY_NAME,
+		       ORGANIZATION_NAME,
+		       GRADE_NAME,
+		       DECODE(ATTRIBUTE2,COMPANY_CODE||'_01','직영','협력사') ATTRIBUTE2,
+		       DECODE(NVL(TRIM(STANDING_CODE), 'isNull1234TT'), 'isNull1234TT', '-', STANDING_CODE||'('||(select CD_V_EXPLAIN
+                from   POSMINI.TB_U40_ES_MA_102
+                where  FK_CD_TP='002'
+                and    COMPANY_CODE in ('00',
+                               U.COMPANY_CODE)
+                and    CD_TP_MEANING= U.STANDING_CODE)||')') AS STANDING_CODE
+		FROM   POSMINI.TB_U71_PI_030 U
+		WHERE  1=1
+		<if test="FULL_NAME !=null and !FULL_NAME.equals('')">
+		AND    LOWER(FULL_NAME) LIKE LOWER('%${FULL_NAME}%')
+		</if>
+		<if test="USER_EMP_NO !=null and !USER_EMP_NO.equals('')">
+		AND    LOWER(USER_EMP_NO)=LOWER(#{USER_EMP_NO})
+		</if>
+		AND    RETIRED_DATE is null
+		AND    USER_STATUS='Active Assignment'
+		ORDER BY DECODE(COMPANY_CODE, '30', '0', COMPANY_CODE), ORGANIZATION_SORT_ORDER, HR_RAI_HEAD_SORT_SNUM, HR_CPT_APTY_DISQ_SEQ, FULL_NAME    
+	</select>    
+    <select id="selectESAuthDB" resultType="hashmap">
+		SELECT * FROM (
+	     SELECT A.*,
+                ROWNUM AS RNUM,
+                COUNT(*) OVER() AS TOTCNT FROM (
+				SELECT 
+					   A.SYSTEM_ID,
+				       DECODE(A.SYSTEM_ID,'all','전체시스템','search','통합검색') SYSTEM_NAME,
+				       A.AUTH_ID, DECODE(A.AUTH_ID,'admin','전체관리자','general','일반사용자') AUTH_NAME,
+				       A.COMPANY_CODE, 
+				       NVL((SELECT CD_TP_MEANING
+                                FROM   POSMINI.TB_U40_ES_MA_102
+                                WHERE  FK_CD_TP='001'
+                                AND    COMPANY_CODE = A.COMPANY_CODE), 'isNull1234TT') COMPANY_NAME,
+				       A.GROUP_ID, 
+				       A.FULL_NAME,A.USER_EMP_NO,A.USER_LOGIN_ID,
+				       U.EMAIL_ADDRESS, TO_CHAR(U.RETIRED_DATE,'YYYY-MM-DD') RETIRED_DATE,
+				       A.META_YN,A.USER_AUTH_EXPLAIN,
+				       NVL(A.ATTRIBUTE1,'Y') ATTRIBUTE1,
+				       A.ATTRIBUTE2 START_DATE,
+				       A.ATTRIBUTE3 END_DATE,
+				       TO_CHAR(A.CREATION_TIMESTAMP,'YYYY-MM-DD') CREATION_TIMESTAMP,
+				       TO_CHAR(A.LAST_UPDATE_TIMESTAMP,'YYYY-MM-DD') LAST_UPDATE_TIMESTAMP
+				FROM POSMINI.TB_U40_010_ES_AUTH A, POSMINI.TB_U71_PI_030 U
+				WHERE 1=1
+				AND A.SYSTEM_ID IN ('all','search')
+                AND U.COMPANY_CODE=A.COMPANY_CODE
+                AND lower(U.USER_EMP_NO)=lower(A.USER_EMP_NO)
+				<if test="where !=null">
+				  AND (LOWER(A.FULL_NAME) LIKE LOWER('%${where}%')
+				      OR LOWER(A.USER_EMP_NO) LIKE LOWER('%${where}%')
+				      OR LOWER(A.USER_LOGIN_ID) LIKE LOWER('%${where}%')
+				      )
+				</if>
+				<if test="SYSTEM_ID !=null and !SYSTEM_ID.equals('')">
+				AND A.SYSTEM_ID=#{SYSTEM_ID}
+				</if>
+				<if test="AUTH_ID !=null and !AUTH_ID.equals('')">
+				AND A.AUTH_ID=#{AUTH_ID}
+				</if>
+				<if test="FULL_NAME !=null and !FULL_NAME.equals('')">
+				AND LOWER(A.FULL_NAME) LIKE LOWER('%${FULL_NAME}%')
+				</if>
+				<if test="COMPANY_CODE !=null and !COMPANY_CODE.equals('')">
+				AND A.COMPANY_CODE=#{COMPANY_CODE}
+				</if>
+				<if test="USEYN !=null and !USEYN.equals('')">
+				AND NVL(A.ATTRIBUTE1,'Y')=#{USEYN}
+				</if>
+				ORDER BY A.SYSTEM_ID, A.AUTH_ID, A.FULL_NAME, A.COMPANY_CODE
+	    ) A	     
+	)
+	<if test="length !=-1"> 
+	WHERE RNUM <![CDATA[> #{start} AND RNUM <= #{length}]]>
+	</if>   
+  </select>
+		
+</mapper>
